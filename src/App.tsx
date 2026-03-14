@@ -19,6 +19,8 @@ import Profile from '@/pages/Profile'
 import Rewards from '@/pages/Rewards'
 import Leaderboard from '@/pages/Leaderboard'
 import Challenges from '@/pages/Challenges'
+import Notifications from '@/pages/Notifications'
+import Settings from '@/pages/Settings'
 import NotFound from '@/pages/NotFound'
 import ServerError from '@/pages/ServerError'
 
@@ -62,6 +64,8 @@ export default function App() {
               <Route path="rewards" element={<Rewards />} />
               <Route path="leaderboard" element={<Leaderboard />} />
               <Route path="challenges" element={<Challenges />} />
+              <Route path="notifications" element={<Notifications />} />
+              <Route path="settings" element={<Settings />} />
               <Route path="profile" element={<Profile />} />
             </Route>
             <Route path="/404" element={<NotFound />} />

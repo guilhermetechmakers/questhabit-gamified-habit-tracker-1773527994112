@@ -50,7 +50,7 @@ export default function Profile() {
       </Card>
 
       <div className="space-y-2">
-        <Link to="/settings" className="block">
+        <Link to="/app/settings" className="block">
           <Button variant="outline" className="w-full justify-start rounded-xl">
             <Settings className="h-4 w-4 mr-2" />
             Settings
