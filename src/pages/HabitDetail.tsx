@@ -29,7 +29,8 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { useState } from 'react'
-import { Star, Pencil, Trash2, ArrowLeft, Bell, Calendar } from 'lucide-react'
+import { Star, Pencil, Trash2, ArrowLeft, Bell, Calendar, Award, Target, Gift } from 'lucide-react'
+import { StreakIndicator } from '@/components/gamification'
 import { format, parseISO } from 'date-fns'
 
 export default function HabitDetail() {
@@ -112,6 +113,10 @@ export default function HabitDetail() {
             {markComplete.isPending ? 'Marking…' : 'Mark complete'}
           </Button>
           <p className="text-sm text-muted-foreground">+{habit.xp_value} XP per completion</p>
+          <Link to="/app/rewards" className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline mt-2">
+            <Gift className="h-4 w-4" />
+            View rewards & badges
+          </Link>
         </CardContent>
       </Card>
 
@@ -144,12 +149,27 @@ export default function HabitDetail() {
                 </BarChart>
               </ResponsiveContainer>
             </div>
-            <p className="text-xs text-muted-foreground mt-2">
-              Streak: {analytics.current_streak} · Longest: {analytics.longest_streak}
+            <p className="text-xs text-muted-foreground mt-2 flex items-center gap-2 flex-wrap">
+              <StreakIndicator current={analytics.current_streak} longest={analytics.longest_streak} showLongest />
             </p>
           </CardContent>
         </Card>
       )}
+
+      <div className="flex flex-wrap gap-2 mb-6">
+        <Link to="/app/rewards">
+          <Button variant="outline" size="sm" className="rounded-xl">
+            <Award className="h-4 w-4 mr-1" />
+            View rewards & badges
+          </Button>
+        </Link>
+        <Link to="/app/challenges">
+          <Button variant="outline" size="sm" className="rounded-xl">
+            <Target className="h-4 w-4 mr-1" />
+            Challenges
+          </Button>
+        </Link>
+      </div>
 
       <Card className="mb-6">
         <CardHeader>

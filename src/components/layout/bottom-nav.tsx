@@ -1,11 +1,13 @@
 import { Link, useLocation } from 'react-router-dom'
-import { LayoutDashboard, ListTodo, PlusCircle, User } from 'lucide-react'
+import { LayoutDashboard, ListTodo, PlusCircle, Trophy, Gift, User } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const items = [
-  { to: '/app/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { to: '/app/dashboard', label: 'Today', icon: LayoutDashboard },
   { to: '/app/habits', label: 'Habits', icon: ListTodo },
   { to: '/app/habits/new', label: 'New', icon: PlusCircle, fab: true },
+  { to: '/app/leaderboard', label: 'Rank', icon: Trophy },
+  { to: '/app/rewards', label: 'Rewards', icon: Gift },
   { to: '/app/profile', label: 'Profile', icon: User },
 ]
 

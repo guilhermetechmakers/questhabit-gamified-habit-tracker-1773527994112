@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom'
 import { useAuth } from '@/contexts/auth-context'
 import { useHabits } from '@/hooks/use-habits'
 import { useUserStats } from '@/hooks/use-stats'
+import { useGamificationProfile } from '@/hooks/use-gamification'
 import { useMarkComplete } from '@/hooks/use-completion'
 import { useRecentCompletions } from '@/hooks/use-recent-completions'
 import { Button } from '@/components/ui/button'
@@ -10,7 +11,8 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Progress } from '@/components/ui/progress'
 import { AnimatedPage } from '@/components/AnimatedPage'
 import { HabitIcon } from '@/components/habits/habit-icon'
-import { Flame, Star, ChevronRight, Activity } from 'lucide-react'
+import { LevelBadge, StreakIndicator } from '@/components/gamification'
+import { Star, ChevronRight, Activity, Coins, Award, Trophy } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { format, parseISO } from 'date-fns'
 
@@ -26,6 +28,7 @@ export default function Dashboard() {
   const userId = user?.id
   const { data: habits = [], isLoading: habitsLoading } = useHabits(userId)
   const { data: stats, isLoading: statsLoading } = useUserStats(userId)
+  const { data: profile } = useGamificationProfile(userId)
   const { data: recentCompletions = [] } = useRecentCompletions(userId, 5)
   const markComplete = useMarkComplete(userId ?? '')
   const habitMap = new Map((Array.isArray(habits) ? habits : []).map((h) => [h.id, h]))
@@ -45,12 +48,16 @@ export default function Dashboard() {
 
       <Card className="mb-6 bg-dark-card text-card-foreground border-0">
         <CardHeader className="pb-2">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between flex-wrap gap-2">
             <CardTitle className="text-lg flex items-center gap-2">
+              <LevelBadge level={level} size="md" />
               <Star className="h-5 w-5 text-primary" />
-              Level {level}
+              <span className="text-xl font-bold text-primary">{xpTotal} XP</span>
             </CardTitle>
-            <span className="text-2xl font-bold text-primary">{xpTotal} XP</span>
+            <Link to="/app/rewards" className="text-sm font-medium text-primary hover:underline flex items-center gap-1">
+              <Coins className="h-4 w-4" />
+              {profile?.rewards_points ?? stats?.rewards_points ?? 0} pts
+            </Link>
           </div>
         </CardHeader>
         <CardContent>
@@ -61,9 +68,22 @@ export default function Dashboard() {
         </CardContent>
       </Card>
 
-      <div className="flex items-center gap-2 mb-4">
-        <Flame className="h-5 w-5 text-primary" />
-        <span className="font-medium">Current streak: {stats?.current_streak ?? 0} days</span>
+      <div className="flex flex-wrap items-center gap-4 mb-4">
+        <StreakIndicator
+          current={stats?.current_streak ?? 0}
+          longest={stats?.longest_streak}
+          showLongest
+        />
+        <Link to="/app/leaderboard" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary transition-colors">
+          <Trophy className="h-5 w-5" />
+          View rank
+        </Link>
+        {Array.isArray(profile?.badges) && profile.badges.length > 0 && (
+          <Link to="/app/rewards" className="flex items-center gap-1 text-muted-foreground hover:text-primary transition-colors">
+            <Award className="h-5 w-5" />
+            <span className="text-sm">{profile.badges.length} badges</span>
+          </Link>
+        )}
       </div>
 
       <section>

@@ -5,4 +5,5 @@ export interface UserStats {
   current_streak: number
   longest_streak: number
   last_completion_date: string | null
+  rewards_points?: number
 }

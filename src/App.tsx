@@ -13,6 +13,9 @@ import HabitDetail from '@/pages/HabitDetail'
 import EditHabit from '@/pages/EditHabit'
 import CreateHabit from '@/pages/CreateHabit'
 import Profile from '@/pages/Profile'
+import Rewards from '@/pages/Rewards'
+import Leaderboard from '@/pages/Leaderboard'
+import Challenges from '@/pages/Challenges'
 import NotFound from '@/pages/NotFound'
 
 const queryClient = new QueryClient({
@@ -49,6 +52,9 @@ export default function App() {
               <Route path="habits/new" element={<CreateHabit />} />
               <Route path="habits/:id" element={<HabitDetail />} />
               <Route path="habits/:id/edit" element={<EditHabit />} />
+              <Route path="rewards" element={<Rewards />} />
+              <Route path="leaderboard" element={<Leaderboard />} />
+              <Route path="challenges" element={<Challenges />} />
               <Route path="profile" element={<Profile />} />
             </Route>
             <Route path="/404" element={<NotFound />} />
