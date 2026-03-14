@@ -13,6 +13,7 @@ import { AnimatedPage } from '@/components/AnimatedPage'
 import { Eye, EyeOff } from 'lucide-react'
 import { PasswordStrengthIndicator } from '@/components/auth/PasswordStrengthIndicator'
 import { edgeApi } from '@/api/edge'
+import { sendVerificationEmail } from '@/api/verification'
 
 const schema = z.object({
   email: z.string().email('Invalid email'),
@@ -46,6 +47,9 @@ export default function Signup() {
       if (error) throw error
       if (sessionData?.user) {
         edgeApi.authAuditLog('signup', { email: sessionData.user.email }).catch(() => {})
+        sendVerificationEmail().catch(() => {
+          toast.error('Account created, but we couldn’t send the verification email. Try resending from the verification page.')
+        })
       }
       toast.success('Account created! Check your email to verify.')
       navigate('/verify-email')
