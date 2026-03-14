@@ -7,6 +7,9 @@ import { AppLayout } from '@/components/layout/app-layout'
 import Landing from '@/pages/Landing'
 import Login from '@/pages/Login'
 import Signup from '@/pages/Signup'
+import EmailVerification from '@/pages/EmailVerification'
+import ForgotPassword from '@/pages/ForgotPassword'
+import ResetPassword from '@/pages/ResetPassword'
 import Dashboard from '@/pages/Dashboard'
 import HabitList from '@/pages/HabitList'
 import HabitDetail from '@/pages/HabitDetail'
@@ -17,6 +20,7 @@ import Rewards from '@/pages/Rewards'
 import Leaderboard from '@/pages/Leaderboard'
 import Challenges from '@/pages/Challenges'
 import NotFound from '@/pages/NotFound'
+import ServerError from '@/pages/ServerError'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -38,6 +42,9 @@ export default function App() {
             <Route path="/" element={<Landing />} />
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
+            <Route path="/verify-email" element={<EmailVerification />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
             <Route
               path="/app"
               element={
@@ -58,6 +65,7 @@ export default function App() {
               <Route path="profile" element={<Profile />} />
             </Route>
             <Route path="/404" element={<NotFound />} />
+            <Route path="/500" element={<ServerError />} />
             <Route path="*" element={<Navigate to="/404" replace />} />
           </Routes>
           <Toaster position="top-center" richColors />

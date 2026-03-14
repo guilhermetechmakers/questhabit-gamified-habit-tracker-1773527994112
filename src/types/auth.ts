@@ -6,6 +6,7 @@ export type AuthAuditEvent =
   | 'password_reset_requested'
   | 'password_changed'
   | 'email_verified'
+  | 'email_verification_sent'
   | 'token_refreshed'
   | 'refresh_token_revoked'
 

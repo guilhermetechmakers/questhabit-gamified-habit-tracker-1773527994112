@@ -1,16 +1,8 @@
 import { supabase } from '@/lib/supabase'
 import type { ProcessCompletionResult } from '@/api/gamification'
+import type { AuthAuditEvent } from '@/types/auth'
 
-export type AuthAuditEvent =
-  | 'signup'
-  | 'login'
-  | 'logout'
-  | 'password_reset_requested'
-  | 'password_changed'
-  | 'email_verified'
-  | 'email_verification_sent'
-  | 'token_refreshed'
-  | 'refresh_token_revoked'
+export type { AuthAuditEvent }
 
 export const edgeApi = {
   authAuditLog: async (

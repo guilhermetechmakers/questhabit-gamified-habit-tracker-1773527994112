@@ -1,5 +1,6 @@
 import { Outlet } from 'react-router-dom'
 import { BottomNav } from './bottom-nav'
+import { OnboardingModal } from '@/components/auth/OnboardingModal'
 
 export function AppLayout() {
   return (
@@ -8,6 +9,7 @@ export function AppLayout() {
         <Outlet />
       </main>
       <BottomNav />
+      <OnboardingModal />
     </div>
   )
 }
