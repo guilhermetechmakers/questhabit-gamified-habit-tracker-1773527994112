@@ -32,26 +32,45 @@ export async function sendVerificationEmail(params: SendVerificationEmailParams)
 </body>
 </html>`.trim()
 
-  const res = await fetch(SENDGRID_URL, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      personalizations: [{ to: [{ email: to.trim() }] }],
-      from: { email: fromEmail, name: 'QuestHabit' },
-      subject,
-      content: [
-        { type: 'text/plain', value: text },
-        { type: 'text/html', value: html },
-      ],
-    }),
-  })
-  if (!res.ok) {
-    const errText = await res.text()
-    throw new Error(`SendGrid error: ${res.status} ${errText}`)
+  const payload = {
+    personalizations: [{ to: [{ email: to.trim() }] }],
+    from: { email: fromEmail, name: 'QuestHabit' },
+    subject,
+    content: [
+      { type: 'text/plain', value: text },
+      { type: 'text/html', value: html },
+    ],
   }
+  const maxRetries = 3
+  let lastError: Error | null = null
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      const res = await fetch(SENDGRID_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify(payload),
+      })
+      if (!res.ok) {
+        const errText = await res.text()
+        lastError = new Error(`SendGrid error: ${res.status} ${errText}`)
+        if (res.status >= 400 && res.status < 500 && res.status !== 429) break
+        if (attempt < maxRetries - 1) {
+          await new Promise((r) => setTimeout(r, Math.pow(2, attempt) * 1000))
+        }
+        continue
+      }
+      return
+    } catch (e) {
+      lastError = e instanceof Error ? e : new Error(String(e))
+      if (attempt < maxRetries - 1) {
+        await new Promise((r) => setTimeout(r, Math.pow(2, attempt) * 1000))
+      }
+    }
+  }
+  throw lastError ?? new Error('SendGrid send failed')
 }
 
 /** Build verify link for the app. Origin from env or default. */

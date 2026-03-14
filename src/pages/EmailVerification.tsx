@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { useAuth } from '@/contexts/auth-context'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -16,6 +17,7 @@ import {
 } from '@/components/ui/dialog'
 import { toast } from 'sonner'
 import { AnimatedPage } from '@/components/AnimatedPage'
+import { Progress } from '@/components/ui/progress'
 import { Mail, ArrowLeft, RefreshCw, Loader2, Pencil, CheckCircle2 } from 'lucide-react'
 import {
   getVerifyStatus,
@@ -35,14 +37,17 @@ type ChangeEmailForm = z.infer<typeof changeEmailSchema>
 
 export default function EmailVerification() {
   const navigate = useNavigate()
+  const { user, isLoading: authLoading } = useAuth()
   const [status, setStatus] = useState<VerifyStatusData>({ verified: false, email: '' })
   const [statusLoading, setStatusLoading] = useState(true)
   const [isResending, setIsResending] = useState(false)
   const [cooldown, setCooldown] = useState(0)
   const [changeEmailOpen, setChangeEmailOpen] = useState(false)
   const [changeEmailSubmitting, setChangeEmailSubmitting] = useState(false)
+  const [pollElapsedMs, setPollElapsedMs] = useState(0)
   const pollUntilRef = useRef<number>(0)
   const pollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const pollProgress = Math.min(100, (pollElapsedMs / POLL_TIMEOUT_MS) * 100)
 
   const fetchStatus = useCallback(async () => {
     try {
@@ -58,6 +63,13 @@ export default function EmailVerification() {
   }, [])
 
   useEffect(() => {
+    if (!authLoading && !user) {
+      navigate('/login', { replace: true })
+    }
+  }, [authLoading, user, navigate])
+
+  useEffect(() => {
+    if (!user) return
     let cancelled = false
     pollUntilRef.current = Date.now() + POLL_TIMEOUT_MS
 
@@ -74,7 +86,7 @@ export default function EmailVerification() {
       cancelled = true
       if (pollTimerRef.current) clearTimeout(pollTimerRef.current)
     }
-  }, [fetchStatus])
+  }, [fetchStatus, user])
 
   useEffect(() => {
     if (!status.verified) return
@@ -87,6 +99,15 @@ export default function EmailVerification() {
     const t = setInterval(() => setCooldown((c) => Math.max(0, c - 1)), 1000)
     return () => clearInterval(t)
   }, [cooldown])
+
+  useEffect(() => {
+    if (!user || status.verified) return
+    const start = Date.now()
+    const t = setInterval(() => {
+      setPollElapsedMs(Date.now() - start)
+    }, 1000)
+    return () => clearInterval(t)
+  }, [user, status.verified])
 
   const handleResend = async () => {
     if (cooldown > 0 || isResending) return
@@ -121,6 +142,17 @@ export default function EmailVerification() {
 
   const email = status?.email ?? ''
 
+  if (authLoading) {
+    return (
+      <AnimatedPage className="flex min-h-screen items-center justify-center p-4 bg-gradient-to-b from-[#FFF4EA] to-[#F7E1C9]">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" aria-hidden />
+          <p className="text-sm text-muted-foreground">Loading…</p>
+        </div>
+      </AnimatedPage>
+    )
+  }
+
   return (
     <AnimatedPage className="flex min-h-screen items-center justify-center p-4 bg-gradient-to-b from-[#FFF4EA] to-[#F7E1C9]">
       <Card className="w-full max-w-md rounded-2xl shadow-[0_8px_20px_rgba(15,17,36,0.06)] border-border bg-card/95">
@@ -151,6 +183,12 @@ export default function EmailVerification() {
                   {email}
                 </p>
               )}
+              <div className="space-y-1" role="progressbar" aria-valuenow={Math.round(pollProgress)} aria-valuemin={0} aria-valuemax={100} aria-label="Polling progress">
+                <Progress value={pollProgress} className="h-1.5" />
+                <p className="text-xs text-muted-foreground text-center">
+                  Checking verification status automatically (every 15s)
+                </p>
+              </div>
               <Button
                 variant="gradient"
                 className="w-full rounded-xl transition-transform hover:scale-[1.02] active:scale-[0.98]"

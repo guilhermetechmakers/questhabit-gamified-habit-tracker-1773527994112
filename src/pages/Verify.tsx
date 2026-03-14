@@ -31,7 +31,10 @@ export default function Verify() {
           setState('success')
           setMessage(res.message ?? 'Email verified successfully.')
           toast.success('Email verified!')
-          setTimeout(() => navigate('/verify-email', { replace: true }), 1500)
+          setTimeout(() => {
+            if (cancelled) return
+            navigate('/app/dashboard', { replace: true })
+          }, 1500)
         } else {
           setState('error')
           setMessage(res.error ?? 'Verification failed.')

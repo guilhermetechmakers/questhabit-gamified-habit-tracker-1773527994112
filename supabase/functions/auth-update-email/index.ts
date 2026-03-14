@@ -26,7 +26,8 @@ serve(async (req) => {
   }
 
   const authHeader = req.headers.get('Authorization')
-  if (!authHeader) {
+  const token = authHeader?.replace(/^Bearer\s+/i, '').trim()
+  if (!token) {
     return new Response(JSON.stringify({ error: 'Unauthorized' }), {
       status: 401,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -37,11 +38,9 @@ serve(async (req) => {
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      { global: { headers: { Authorization: authHeader } } }
+      { global: { headers: { Authorization: authHeader ?? '' } } }
     )
-    const { data: { user }, error: authError } = await supabase.auth.getUser(
-      authHeader.replace('Bearer ', '')
-    )
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token)
     if (authError || !user?.id) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
         status: 401,

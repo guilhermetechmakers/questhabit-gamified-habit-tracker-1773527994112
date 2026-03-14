@@ -17,5 +17,11 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
     return <Navigate to="/login" state={{ from: location }} replace />
   }
 
+  const pathname = location.pathname ?? ''
+  const isVerifyRoute = pathname === '/verify-email' || pathname === '/verify'
+  if (!user.email_confirmed_at && !isVerifyRoute) {
+    return <Navigate to="/verify-email" replace />
+  }
+
   return <>{children}</>;
 }
