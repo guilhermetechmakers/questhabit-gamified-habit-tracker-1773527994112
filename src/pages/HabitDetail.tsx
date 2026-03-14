@@ -1,13 +1,25 @@
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/contexts/auth-context'
-import { useHabit } from '@/hooks/use-habits'
-import { useDeleteHabit } from '@/hooks/use-habits'
+import { useHabitWithReminders, useDeleteHabit } from '@/hooks/use-habits'
 import { useMarkComplete } from '@/hooks/use-completion'
+import { useCreateReminder, useUpdateReminder, useDeleteReminder } from '@/hooks/use-reminders'
+import { useHabitHistory, useHabitAnalytics } from '@/hooks/use-habits'
+import { HabitIcon } from '@/components/habits/habit-icon'
+import { ReminderEditor } from '@/components/habits/ReminderEditor'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { AnimatedPage } from '@/components/AnimatedPage'
-import { Target, Star, Pencil, Trash2, ArrowLeft } from 'lucide-react'
+import { formatScheduleLabel } from '@/lib/schedule'
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+  Cell,
+} from 'recharts'
 import {
   Dialog,
   DialogContent,
@@ -17,15 +29,22 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { useState } from 'react'
+import { Star, Pencil, Trash2, ArrowLeft, Bell, Calendar } from 'lucide-react'
+import { format, parseISO } from 'date-fns'
 
 export default function HabitDetail() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const { user } = useAuth()
-  const userId = user?.id
-  const { data: habit, isLoading } = useHabit(id)
-  const deleteHabit = useDeleteHabit(userId ?? '')
-  const markComplete = useMarkComplete(userId ?? '')
+  const userId = user?.id ?? ''
+  const { data: habit, isLoading } = useHabitWithReminders(id)
+  const { data: history = [] } = useHabitHistory(id)
+  const { data: analytics } = useHabitAnalytics(id)
+  const deleteHabit = useDeleteHabit(userId)
+  const markComplete = useMarkComplete(userId)
+  const createReminder = useCreateReminder(id ?? '')
+  const updateReminder = useUpdateReminder(id ?? '')
+  const deleteReminder = useDeleteReminder(id ?? '')
   const [showDelete, setShowDelete] = useState(false)
 
   const handleDelete = async () => {
@@ -34,6 +53,8 @@ export default function HabitDetail() {
     setShowDelete(false)
     navigate('/app/habits')
   }
+
+  const reminders = habit?.reminders ?? []
 
   if (!id) return null
   if (isLoading || !habit) {
@@ -45,29 +66,40 @@ export default function HabitDetail() {
     )
   }
 
+  const last7 = analytics?.last_7_days ?? []
+  const chartData = last7.map((d) => ({
+    day: format(parseISO(d.date), 'EEE'),
+    completed: d.completed ? 1 : 0,
+    xp: d.xp_gained,
+  }))
+
   return (
     <AnimatedPage>
       <div className="flex items-center gap-2 mb-6">
         <Link to="/app/habits">
-          <Button variant="ghost" size="icon">
+          <Button variant="ghost" size="icon" aria-label="Back to habits">
             <ArrowLeft className="h-5 w-5" />
           </Button>
         </Link>
         <h1 className="text-xl font-bold text-foreground flex-1 truncate">{habit.title}</h1>
         <Link to={`/app/habits/${id}/edit`}>
-          <Button variant="ghost" size="icon">
+          <Button variant="ghost" size="icon" aria-label="Edit habit">
             <Pencil className="h-5 w-5" />
           </Button>
         </Link>
-        <Button variant="ghost" size="icon" onClick={() => setShowDelete(true)}>
+        <Button variant="ghost" size="icon" onClick={() => setShowDelete(true)} aria-label="Delete habit">
           <Trash2 className="h-5 w-5 text-destructive" />
         </Button>
       </div>
 
+      {habit.goal && (
+        <p className="text-sm text-muted-foreground mb-4">{habit.goal}</p>
+      )}
+
       <Card className="mb-6">
         <CardContent className="p-6 flex flex-col items-center gap-4">
           <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-            <Target className="h-8 w-8" />
+            <HabitIcon name={habit.icon} size={32} />
           </div>
           <Button
             variant="gradient"
@@ -83,21 +115,100 @@ export default function HabitDetail() {
         </CardContent>
       </Card>
 
-      <Card>
+      {analytics && (
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <Calendar className="h-4 w-4" />
+              Last 7 days
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="h-32 w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={chartData} margin={{ top: 4, right: 4, left: 4, bottom: 0 }}>
+                  <XAxis dataKey="day" tick={{ fontSize: 11 }} />
+                  <YAxis hide domain={[0, 1]} />
+                  <Tooltip
+                    formatter={(value: number) => (value ? 'Done' : '—')}
+                    contentStyle={{ borderRadius: 8 }}
+                  />
+                  <Bar dataKey="completed" radius={[4, 4, 0, 0]}>
+                    {chartData.map((entry, index) => (
+                      <Cell
+                        key={index}
+                        fill={entry.completed ? 'rgb(var(--primary))' : 'rgb(var(--muted))'}
+                      />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+            <p className="text-xs text-muted-foreground mt-2">
+              Streak: {analytics.current_streak} · Longest: {analytics.longest_streak}
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
+      <Card className="mb-6">
         <CardHeader>
           <CardTitle className="text-base">Schedule</CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-muted-foreground capitalize">{habit.schedule_json?.frequency ?? 'daily'}</p>
+          <p className="text-muted-foreground">{formatScheduleLabel(habit.schedule_json ?? null)}</p>
+          {habit.timezone && (
+            <p className="text-xs text-muted-foreground mt-1">Timezone: {habit.timezone}</p>
+          )}
         </CardContent>
       </Card>
+
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <Bell className="h-4 w-4" />
+            Reminders
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ReminderEditor
+            reminders={reminders}
+            onAdd={(timeOfDay: string) => createReminder.mutate({ time_of_day: timeOfDay })}
+            onToggle={(rid: string, enabled: boolean) =>
+              updateReminder.mutate({ id: rid, updates: { enabled } })
+            }
+            onRemove={(rid: string) => deleteReminder.mutate(rid)}
+          />
+        </CardContent>
+      </Card>
+
+      {Array.isArray(history) && history.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Recent history</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ul className="space-y-2 max-h-48 overflow-y-auto">
+              {(history as { date: string; xp_gained: number }[]).slice(0, 10).map((entry) => (
+                <li
+                  key={entry.date}
+                  className="flex justify-between text-sm"
+                >
+                  <span className="text-muted-foreground">{entry.date}</span>
+                  <span className="font-medium">+{entry.xp_gained} XP</span>
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      )}
 
       <Dialog open={showDelete} onOpenChange={setShowDelete}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Delete habit</DialogTitle>
             <DialogDescription>
-              Remove "{habit.title}"? Completions will be lost. This can't be undone.
+              Remove &quot;{habit.title}&quot;? Completions will be lost. This can&apos;t be undone.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>

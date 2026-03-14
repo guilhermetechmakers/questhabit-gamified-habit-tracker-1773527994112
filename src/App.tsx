@@ -10,6 +10,7 @@ import Signup from '@/pages/Signup'
 import Dashboard from '@/pages/Dashboard'
 import HabitList from '@/pages/HabitList'
 import HabitDetail from '@/pages/HabitDetail'
+import EditHabit from '@/pages/EditHabit'
 import CreateHabit from '@/pages/CreateHabit'
 import Profile from '@/pages/Profile'
 import NotFound from '@/pages/NotFound'
@@ -47,6 +48,7 @@ export default function App() {
               <Route path="habits" element={<HabitList />} />
               <Route path="habits/new" element={<CreateHabit />} />
               <Route path="habits/:id" element={<HabitDetail />} />
+              <Route path="habits/:id/edit" element={<EditHabit />} />
               <Route path="profile" element={<Profile />} />
             </Route>
             <Route path="/404" element={<NotFound />} />

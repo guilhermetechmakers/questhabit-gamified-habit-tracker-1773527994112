@@ -15,4 +15,18 @@ export const edgeApi = {
       longest_streak: number
     }
   },
+
+  getUploadUrl: async (params: {
+    asset_type: 'image' | 'badge' | 'export'
+    filename: string
+    content_type?: string
+  }) => {
+    const { data, error } = await supabase.functions.invoke('upload-url', {
+      body: params,
+    })
+    if (error) throw new Error(error.message)
+    const payload = data as { error?: string; upload_url?: string; path?: string; token?: string }
+    if (payload?.error) throw new Error(payload.error)
+    return { uploadUrl: payload.upload_url, path: payload.path, token: payload.token }
+  },
 }

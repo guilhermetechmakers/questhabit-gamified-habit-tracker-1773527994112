@@ -3,13 +3,16 @@ import { useAuth } from '@/contexts/auth-context'
 import { useHabits } from '@/hooks/use-habits'
 import { useUserStats } from '@/hooks/use-stats'
 import { useMarkComplete } from '@/hooks/use-completion'
+import { useRecentCompletions } from '@/hooks/use-recent-completions'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Progress } from '@/components/ui/progress'
 import { AnimatedPage } from '@/components/AnimatedPage'
-import { Flame, Star, ChevronRight } from 'lucide-react'
+import { HabitIcon } from '@/components/habits/habit-icon'
+import { Flame, Star, ChevronRight, Activity } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { format, parseISO } from 'date-fns'
 
 const XP_PER_LEVEL = 100
 const LEVEL_MULTIPLIER = 1.2
@@ -21,9 +24,11 @@ function xpForLevel(level: number) {
 export default function Dashboard() {
   const { user } = useAuth()
   const userId = user?.id
-  const { data: habits, isLoading: habitsLoading } = useHabits(userId)
+  const { data: habits = [], isLoading: habitsLoading } = useHabits(userId)
   const { data: stats, isLoading: statsLoading } = useUserStats(userId)
+  const { data: recentCompletions = [] } = useRecentCompletions(userId, 5)
   const markComplete = useMarkComplete(userId ?? '')
+  const habitMap = new Map((Array.isArray(habits) ? habits : []).map((h) => [h.id, h]))
 
   if (!userId) return null
 
@@ -98,7 +103,7 @@ export default function Dashboard() {
                       )}
                       aria-label={`Mark ${habit.title} complete`}
                     >
-                      <Star className="h-6 w-6" />
+                      <HabitIcon name={habit.icon} size={24} />
                     </button>
                     <div className="flex-1 min-w-0">
                       <p className="font-medium text-foreground truncate">{habit.title}</p>
@@ -116,6 +121,34 @@ export default function Dashboard() {
           </ul>
         )}
       </section>
+
+      {Array.isArray(recentCompletions) && recentCompletions.length > 0 && (
+        <section className="mt-8">
+          <h2 className="text-lg font-semibold text-foreground mb-3 flex items-center gap-2">
+            <Activity className="h-5 w-5 text-primary" />
+            Recent activity
+          </h2>
+          <Card>
+            <CardContent className="p-4">
+              <ul className="space-y-2">
+                {recentCompletions.slice(0, 5).map((c) => {
+                  const habit = habitMap.get(c.habit_id)
+                  const title = habit?.title ?? 'Habit'
+                  return (
+                    <li key={c.id} className="flex justify-between items-center text-sm">
+                      <span className="text-muted-foreground truncate mr-2">{title}</span>
+                      <span className="shrink-0 text-foreground font-medium">+{c.xp_awarded} XP</span>
+                      <span className="text-xs text-muted-foreground shrink-0 ml-2">
+                        {format(parseISO(c.timestamp), 'HH:mm')}
+                      </span>
+                    </li>
+                  )
+                })}
+              </ul>
+            </CardContent>
+          </Card>
+        </section>
+      )}
     </AnimatedPage>
   )
 }

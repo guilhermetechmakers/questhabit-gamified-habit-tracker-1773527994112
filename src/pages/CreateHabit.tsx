@@ -9,18 +9,23 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { AnimatedPage } from '@/components/AnimatedPage'
+import { ScheduleEditor } from '@/components/habits'
 import { Link } from 'react-router-dom'
-import { ArrowLeft, Target, ChevronRight } from 'lucide-react'
+import { ArrowLeft, ChevronRight } from 'lucide-react'
+import { HabitIcon } from '@/components/habits/habit-icon'
+import type { ScheduleJson } from '@/types/habit'
 
 const step1Schema = z.object({
   title: z.string().min(1, 'Name your habit'),
+  goal: z.string().optional(),
   icon: z.string().default('target'),
 })
 
 const step2Schema = z.object({
-  frequency: z.enum(['daily', 'weekly', 'custom']),
+  frequency: z.enum(['daily', 'weekly', 'monthly']),
+  days: z.array(z.number()).optional(),
 })
 
 const step3Schema = z.object({
@@ -40,8 +45,8 @@ export default function CreateHabit() {
   const userId = user?.id
   const createHabit = useCreateHabit()
   const [step, setStep] = useState(1)
-  const [form1, setForm1] = useState<Step1>({ title: '', icon: 'target' })
-  const [form2, setForm2] = useState<Step2>({ frequency: 'daily' })
+  const [form1, setForm1] = useState<Step1>({ title: '', goal: '', icon: 'target' })
+  const [form2, setForm2] = useState<Step2>({ frequency: 'daily', days: [] })
   const [form3, setForm3] = useState<Step3>({ xp_value: 10, privacy_flag: 'private' })
 
   const {
@@ -65,14 +70,20 @@ export default function CreateHabit() {
 
   const onStep3 = async () => {
     if (!userId) return
-    const schedule_json = { frequency: form2.frequency }
+    const schedule_json: ScheduleJson = {
+      frequency: form2.frequency,
+      days: form2.days?.length ? form2.days : undefined,
+    }
+    const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone ?? 'UTC'
     await createHabit.mutateAsync({
       user_id: userId,
       title: form1.title,
+      goal: form1.goal || undefined,
       icon: form1.icon,
       schedule_json,
       xp_value: form3.xp_value,
       privacy_flag: form3.privacy_flag,
+      timezone,
     })
     navigate('/app/dashboard')
   }
@@ -117,6 +128,15 @@ export default function CreateHabit() {
                 )}
               </div>
               <div>
+                <Label htmlFor="goal">Short goal (optional)</Label>
+                <Input
+                  id="goal"
+                  placeholder="e.g. Run 5k"
+                  className="mt-1 rounded-xl"
+                  {...register('goal')}
+                />
+              </div>
+              <div>
                 <Label>Icon</Label>
                 <div className="mt-2 flex flex-wrap gap-2">
                   {ICONS.map((icon) => (
@@ -130,7 +150,7 @@ export default function CreateHabit() {
                           : 'border-border hover:border-primary/50'
                       }`}
                     >
-                      <Target className="h-6 w-6" />
+                      <HabitIcon name={icon} size={24} />
                     </button>
                   ))}
                 </div>
@@ -146,28 +166,21 @@ export default function CreateHabit() {
       {step === 2 && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Frequency</CardTitle>
+            <CardTitle className="text-lg">Frequency & schedule</CardTitle>
           </CardHeader>
           <CardContent>
-            <Tabs
-              value={form2.frequency}
-              onValueChange={(v) => setForm2({ ...form2, frequency: v as Step2['frequency'] })}
-            >
-              <TabsList className="grid w-full grid-cols-3 rounded-xl">
-                <TabsTrigger value="daily" className="rounded-lg">Daily</TabsTrigger>
-                <TabsTrigger value="weekly" className="rounded-lg">Weekly</TabsTrigger>
-                <TabsTrigger value="custom" className="rounded-lg">Custom</TabsTrigger>
-              </TabsList>
-              <TabsContent value="daily" className="mt-4">
-                <p className="text-sm text-muted-foreground">Complete this habit every day.</p>
-              </TabsContent>
-              <TabsContent value="weekly" className="mt-4">
-                <p className="text-sm text-muted-foreground">Choose which days of the week.</p>
-              </TabsContent>
-              <TabsContent value="custom" className="mt-4">
-                <p className="text-sm text-muted-foreground">Set your own schedule.</p>
-              </TabsContent>
-            </Tabs>
+            <ScheduleEditor
+              value={{
+                frequency: form2.frequency,
+                days: form2.days,
+              }}
+              onChange={(s) =>
+                setForm2({
+                  frequency: s.frequency as Step2['frequency'],
+                  days: s.days ?? [],
+                })
+              }
+            />
             <Button
               onClick={onStep2}
               variant="gradient"
