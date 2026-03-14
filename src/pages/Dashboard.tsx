@@ -56,7 +56,7 @@ export default function Dashboard() {
             </CardTitle>
             <Link to="/app/rewards" className="text-sm font-medium text-primary hover:underline flex items-center gap-1">
               <Coins className="h-4 w-4" />
-              {profile?.rewards_points ?? stats?.rewards_points ?? 0} pts
+              {profile?.rewards_points ?? profile?.reward_points ?? stats?.rewards_points ?? 0} pts
             </Link>
           </div>
         </CardHeader>

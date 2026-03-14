@@ -1,7 +1,32 @@
 import { supabase } from '@/lib/supabase'
 import type { ProcessCompletionResult } from '@/api/gamification'
 
+export type AuthAuditEvent =
+  | 'signup'
+  | 'login'
+  | 'logout'
+  | 'password_reset_requested'
+  | 'password_changed'
+  | 'email_verified'
+  | 'email_verification_sent'
+  | 'token_refreshed'
+  | 'refresh_token_revoked'
+
 export const edgeApi = {
+  authAuditLog: async (
+    event: AuthAuditEvent,
+    metadata?: Record<string, unknown>
+  ): Promise<void> => {
+    const { error } = await supabase.functions.invoke('auth-audit-log', {
+      body: { event, metadata: metadata ?? {} },
+    })
+    if (error) {
+      // Non-blocking: log to console in dev, do not throw
+      if (typeof console !== 'undefined' && console.warn) {
+        console.warn('[auth-audit]', error.message)
+      }
+    }
+  },
   processCompletion: async (
     habitId: string,
     source: 'app' | 'reminder' | 'offline_sync' = 'app',

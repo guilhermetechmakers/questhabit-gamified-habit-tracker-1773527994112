@@ -61,7 +61,7 @@ export default function Rewards() {
           </h2>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             {(profile?.badges ?? []).map((b) => (
-              <Card key={b.badge_id} className="overflow-hidden">
+              <Card key={b.id ?? b.badge_id} className="overflow-hidden">
                 <CardContent className="p-4 flex flex-col items-center gap-2">
                   <div className="h-12 w-12 rounded-xl bg-secondary/20 flex items-center justify-center">
                     {b.icon_url ? (

@@ -4,6 +4,8 @@
 
 export interface GamificationProfileBadge {
   badge_id: string
+  /** Optional id for compatibility with APIs that return id instead of badge_id */
+  id?: string
   name: string
   icon_url: string | null
   rarity: string
@@ -17,6 +19,8 @@ export interface GamificationProfile {
   current_streak: number
   longest_streak: number
   rewards_points: number
+  /** @deprecated Use rewards_points. Kept for API compatibility. */
+  reward_points?: number
   badges: GamificationProfileBadge[]
   habit_streaks?: { habit_id: string; current_streak: number; longest_streak: number }[]
   last_active: string | null
@@ -69,6 +73,9 @@ export interface UserReward {
   reward_id: string
   redeemed_at: string
 }
+
+/** Alias for UserReward (redemption record from reward_redemptions table). */
+export type RewardRedemption = UserReward
 
 export interface CompleteEventPayload {
   habit_id: string
