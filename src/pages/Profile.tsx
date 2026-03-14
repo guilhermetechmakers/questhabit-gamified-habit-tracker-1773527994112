@@ -4,7 +4,7 @@ import { useUserStats } from '@/hooks/use-stats'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { AnimatedPage } from '@/components/AnimatedPage'
-import { User, LogOut, Star, Settings } from 'lucide-react'
+import { User, LogOut, Star, Settings, CreditCard } from 'lucide-react'
 
 export default function Profile() {
   const { user, signOut } = useAuth()
@@ -50,6 +50,12 @@ export default function Profile() {
       </Card>
 
       <div className="space-y-2">
+        <Link to="/app/billing" className="block">
+          <Button variant="outline" className="w-full justify-start rounded-xl">
+            <CreditCard className="h-4 w-4 mr-2" />
+            Billing
+          </Button>
+        </Link>
         <Link to="/app/settings" className="block">
           <Button variant="outline" className="w-full justify-start rounded-xl">
             <Settings className="h-4 w-4 mr-2" />

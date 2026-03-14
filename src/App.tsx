@@ -21,6 +21,10 @@ import Leaderboard from '@/pages/Leaderboard'
 import Challenges from '@/pages/Challenges'
 import Notifications from '@/pages/Notifications'
 import Settings from '@/pages/Settings'
+import Billing from '@/pages/Billing'
+import BillingCheckout from '@/pages/BillingCheckout'
+import BillingSubscription from '@/pages/BillingSubscription'
+import BillingHistory from '@/pages/BillingHistory'
 import NotFound from '@/pages/NotFound'
 import ServerError from '@/pages/ServerError'
 
@@ -67,6 +71,10 @@ export default function App() {
               <Route path="notifications" element={<Notifications />} />
               <Route path="settings" element={<Settings />} />
               <Route path="profile" element={<Profile />} />
+              <Route path="billing" element={<Billing />} />
+              <Route path="billing/checkout" element={<BillingCheckout />} />
+              <Route path="billing/subscription" element={<BillingSubscription />} />
+              <Route path="billing/history" element={<BillingHistory />} />
             </Route>
             <Route path="/404" element={<NotFound />} />
             <Route path="/500" element={<ServerError />} />
