@@ -11,15 +11,13 @@ import type {
   ExportJob,
 } from '@/types/admin'
 import type {
-  CohortSummary,
-  RetentionCurve,
-  FunnelData,
-  AnalyticsOverviewMetrics,
+  Cohort,
+  CohortRow,
+  FunnelStep,
   AnalyticsExportJob,
-  ExportSchedule,
-  ReportRow,
+  Report,
   AnalyticsFilters,
-  UserSearchResult,
+  AdminUserSearchResult,
 } from '@/types/analytics'
 
 export interface AdminRequestOptions {
@@ -155,100 +153,29 @@ export const adminApi = {
     }),
 
   // Analytics & Reporting
-  getAnalyticsOverview: (): Promise<AnalyticsOverviewMetrics> =>
-    adminRequest({ path: 'analytics/overview', method: 'GET' }),
-
-  getAnalyticsCohorts: (filters?: AnalyticsFilters) => {
-    const q: Record<string, string> = {}
-    if (filters?.dateFrom) q.dateFrom = String(filters.dateFrom)
-    if (filters?.dateTo) q.dateTo = String(filters.dateTo)
-    if (filters?.channel) q.channel = String(filters.channel ?? '')
-    if (filters?.device) q.device = String(filters.device ?? '')
-    if (filters?.country) q.country = String(filters.country ?? '')
-    return adminRequest<CohortSummary>({ path: 'analytics/cohorts', method: 'GET', query: q })
-  },
-
-  getAnalyticsRetention: (params: { cohortId?: string; range?: string }) => {
-    const query: Record<string, string> = {}
-    if (params.cohortId) query.cohortId = params.cohortId
-    if (params.range) query.range = params.range
-    return adminRequest<{ curves: RetentionCurve[] }>({ path: 'analytics/retention', method: 'GET', query })
-  },
-
-  getAnalyticsFunnels: (filters?: AnalyticsFilters) => {
+  getCohorts: (filters?: AnalyticsFilters) => {
     const q: Record<string, string> = {}
     if (filters?.dateFrom) q.dateFrom = String(filters.dateFrom ?? '')
     if (filters?.dateTo) q.dateTo = String(filters.dateTo ?? '')
-    return adminRequest<FunnelData>({ path: 'analytics/funnels', method: 'GET', query: q })
+    if (filters?.channel) q.channel = String(filters.channel ?? '')
+    return adminRequest<{ data: Cohort[] }>({ path: 'analytics/cohorts', method: 'GET', query: q })
   },
 
-  getCohorts: (filters?: AnalyticsFilters) =>
-    adminApi.getAnalyticsCohorts(filters).then((r) => ({ data: r.cohorts ?? [] })),
+  getRetention: (params?: { cohortId?: string; range?: string }) => {
+    const query: Record<string, string> = {}
+    if (params?.cohortId) query.cohortId = params.cohortId ?? ''
+    if (params?.range) query.range = params.range ?? ''
+    return adminRequest<{ data: CohortRow[] }>({ path: 'analytics/retention', method: 'GET', query })
+  },
 
-  getRetention: (params?: { cohortId?: string; range?: string }) =>
-    adminApi.getAnalyticsRetention(params ?? {}).then((r) => ({ data: r.curves ?? [] })),
+  getFunnels: (filters?: AnalyticsFilters) => {
+    const q: Record<string, string> = {}
+    if (filters?.dateFrom) q.dateFrom = String(filters.dateFrom ?? '')
+    if (filters?.dateTo) q.dateTo = String(filters.dateTo ?? '')
+    return adminRequest<{ data: FunnelStep[] }>({ path: 'analytics/funnels', method: 'GET', query: q })
+  },
 
-  getFunnels: (filters?: AnalyticsFilters) =>
-    adminApi.getAnalyticsFunnels(filters).then((r) => ({ data: r.steps ?? [] })),
-
-  createAnalyticsExport: (payload: {
-    type: 'cohort' | 'retention' | 'events' | 'report'
-    format: 'csv' | 'json'
-    filters?: Record<string, unknown>
-    scheduleId?: string
-  }) =>
-    adminRequest<{ jobId: string }>({
-      path: 'analytics/exports',
-      method: 'POST',
-      body: payload,
-    }),
-
-  getAnalyticsExportStatus: (jobId: string): Promise<AnalyticsExportJob> =>
-    adminRequest({ path: `analytics/exports/${jobId}`, method: 'GET' }),
-
-  updateAnalyticsExport: (jobId: string, action: 'pause' | 'resume' | 'cancel') =>
-    adminRequest<{ success: boolean }>({
-      path: `analytics/exports/${jobId}`,
-      method: 'PATCH',
-      body: { action },
-    }),
-
-  getAnalyticsReports: (filters?: Record<string, string>) =>
-    adminRequest<{ data: ReportRow[] }>({
-      path: 'analytics/reports',
-      method: 'GET',
-      query: filters ?? {},
-    }),
-
-  getExportSchedules: () =>
-    adminRequest<{ data: ExportSchedule[] }>({ path: 'analytics/schedules', method: 'GET' }),
-
-  createExportSchedule: (schedule: {
-    export_type: string
-    format: 'csv' | 'json'
-    cron_expression?: string
-    filters?: Record<string, unknown>
-  }) =>
-    adminRequest<{ id: string }>({
-      path: 'analytics/schedules',
-      method: 'POST',
-      body: schedule,
-    }),
-
-  updateExportSchedule: (id: string, updates: { is_active?: boolean; cron_expression?: string }) =>
-    adminRequest<{ success: boolean }>({
-      path: `analytics/schedules/${id}`,
-      method: 'PATCH',
-      body: updates,
-    }),
-
-  deleteExportSchedule: (id: string) =>
-    adminRequest<{ success: boolean }>({
-      path: `analytics/schedules/${id}`,
-      method: 'DELETE',
-    }),
-
-  ingestAnalyticsEvent: (event: {
+  ingestEvent: (event: {
     userId?: string
     type: string
     name: string
@@ -262,34 +189,33 @@ export const adminApi = {
       body: event,
     }),
 
-  searchUsersAnalytics: (q: string): Promise<{ data: UserSearchResult[] }> =>
-    adminRequest({ path: 'users/search', method: 'GET', query: { q } }),
+  searchUsers: (q: string) =>
+    adminRequest<{ data: AdminUserSearchResult[] }>({
+      path: 'analytics/users/search',
+      method: 'GET',
+      query: { q },
+    }),
 
-  searchUsers: (q: string): Promise<{ data: UserSearchResult[] }> =>
-    adminRequest({ path: 'users/search', method: 'GET', query: { q } }),
-
-  createExport: (payload: {
-    type: string
-    format?: 'csv' | 'json'
-    filters?: Record<string, unknown>
-    scheduleId?: string
-  }) =>
+  createExport: (payload: { type: 'csv' | 'json'; filters?: AnalyticsFilters; scheduleId?: string }) =>
     adminRequest<{ jobId: string }>({
       path: 'analytics/exports',
       method: 'POST',
-      body: {
-        type: payload.type === 'csv' || payload.type === 'json' ? 'events' : payload.type,
-        format: payload.format ?? (payload.type === 'csv' ? 'csv' : 'json'),
-        filters: payload.filters,
-        scheduleId: payload.scheduleId,
-      },
+      body: payload,
     }),
 
   getExportJob: (jobId: string) =>
     adminRequest<AnalyticsExportJob>({ path: `analytics/exports/${jobId}`, method: 'GET' }),
 
   updateExportJob: (jobId: string, action: 'pause' | 'resume' | 'cancel') =>
-    adminApi.updateAnalyticsExport(jobId, action),
+    adminRequest<{ success: boolean }>({
+      path: `analytics/exports/${jobId}`,
+      method: 'PATCH',
+      body: { action },
+    }),
 
-  getReports: (filters?: Record<string, string>) => adminApi.getAnalyticsReports(filters),
+  getReports: (filters?: AnalyticsFilters) => {
+    const q: Record<string, string> = {}
+    if (filters?.dateFrom) q.dateFrom = String(filters.dateFrom ?? '')
+    return adminRequest<{ data: Report[] }>({ path: 'analytics/reports', method: 'GET', query: q })
+  },
 }

@@ -64,7 +64,7 @@ export function useCreateAnalyticsExport() {
     }) =>
       adminApi.createExport({
         type: payload.format,
-        filters: (payload.filters ?? undefined) as unknown as AnalyticsFilters | undefined,
+        filters: payload.filters as AnalyticsFilters | undefined,
         scheduleId: payload.scheduleId,
       }),
     onSuccess: () => {

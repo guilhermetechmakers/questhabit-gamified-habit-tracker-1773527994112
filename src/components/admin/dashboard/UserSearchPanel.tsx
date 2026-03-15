@@ -82,7 +82,7 @@ export function UserSearchPanel({ className }: UserSearchPanelProps) {
                       <div className="min-w-0 flex-1">
                         <p className="font-medium text-sm truncate">{u.email}</p>
                         <p className="text-xs text-muted-foreground truncate">
-                          {u.display_name ?? u.id} · {u.role}
+                          {u.displayName ?? u.id} · {u.role}
                         </p>
                       </div>
                     </button>
