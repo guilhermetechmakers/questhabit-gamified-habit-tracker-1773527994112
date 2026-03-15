@@ -29,6 +29,11 @@ import BillingSubscription from '@/pages/BillingSubscription'
 import BillingHistory from '@/pages/BillingHistory'
 import NotFound from '@/pages/NotFound'
 import ServerError from '@/pages/ServerError'
+import { AdminLayout, AdminRoute } from '@/components/admin'
+import AdminDashboard from '@/pages/AdminDashboard'
+import AdminUsers from '@/pages/AdminUsers'
+import AdminModeration from '@/pages/AdminModeration'
+import AdminAudit from '@/pages/AdminAudit'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -54,6 +59,12 @@ export default function App() {
             <Route path="/verify" element={<Verify />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/app/admin" element={<ProtectedRoute><AdminRoute><AdminLayout /></AdminRoute></ProtectedRoute>}>
+              <Route index element={<AdminDashboard />} />
+              <Route path="users" element={<AdminUsers />} />
+              <Route path="moderation" element={<AdminModeration />} />
+              <Route path="audit" element={<AdminAudit />} />
+            </Route>
             <Route
               path="/app"
               element={

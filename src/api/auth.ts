@@ -8,7 +8,7 @@ export const authApi = {
   getMe: async (userId: string): Promise<AppUser | null> => {
     const { data, error } = await supabase
       .from('users')
-      .select('id, email, display_name, avatar_url, role, created_at, last_login, subscription_id, settings_json')
+      .select('id, email, display_name, avatar_url, role, created_at, last_login, subscription_id, settings_json, impersonating_user_id')
       .eq('id', userId)
       .single()
     if (error) {
@@ -26,6 +26,7 @@ export const authApi = {
       last_login: (data as { last_login?: string | null }).last_login ?? null,
       subscription_id: (data as { subscription_id?: string | null }).subscription_id ?? null,
       settings_json: (data as { settings_json?: Record<string, unknown> | null }).settings_json ?? null,
+      impersonating_user_id: (data as { impersonating_user_id?: string | null }).impersonating_user_id ?? null,
     }
   },
 

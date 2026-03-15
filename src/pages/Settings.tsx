@@ -8,7 +8,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Skeleton } from '@/components/ui/skeleton'
-import { ArrowLeft, Bell, Moon, RefreshCw } from 'lucide-react'
+import { ArrowLeft, Bell, Moon, RefreshCw, Shield } from 'lucide-react'
+import { useAdminProfile } from '@/hooks/use-admin'
 import type { ThemePreference, SyncFrequency } from '@/types/settings'
 import { DEFAULT_USER_SETTINGS } from '@/types/settings'
 
@@ -39,6 +40,7 @@ function isValidQuietHours(start: string, end: string): boolean {
 export default function Settings() {
   const { user } = useAuth()
   const userId = user?.id ?? ''
+  const { canAccessAdmin } = useAdminProfile()
   const { data: settings, isLoading } = useSettings(userId)
   const updateSettings = useUpdateSettings(userId)
 
@@ -284,6 +286,24 @@ export default function Settings() {
           </div>
         </CardContent>
       </Card>
+
+      {canAccessAdmin && (
+        <Card className="mb-6 rounded-2xl border-border bg-card shadow-card">
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <Shield className="h-4 w-4" />
+              Admin
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Link to="/app/admin">
+              <Button variant="outline" className="rounded-xl w-full sm:w-auto">
+                Open Admin Dashboard
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="flex gap-3">
         <Button
