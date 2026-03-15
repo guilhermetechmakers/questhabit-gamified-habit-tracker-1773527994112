@@ -47,6 +47,7 @@
     "@radix-ui/react-tabs": "^1.1.12",
     "@radix-ui/react-toast": "^1.2.14",
     "@radix-ui/react-tooltip": "^1.2.7",
+    "idb": "^8.0.0",
     "@supabase/supabase-js": "^2.47.10",
     "@stripe/stripe-js": "^4.8.0",
     "@stripe/react-stripe-js": "^2.4.0"

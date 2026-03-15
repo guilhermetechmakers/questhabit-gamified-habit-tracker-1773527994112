@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import { useAuth } from '@/contexts/auth-context'
+import { useOfflineSync } from '@/contexts/offline-sync-context'
 import { useHabits } from '@/hooks/use-habits'
 import { useUserStats } from '@/hooks/use-stats'
 import { useGamificationProfile } from '@/hooks/use-gamification'
@@ -26,12 +27,15 @@ function xpForLevel(level: number) {
 export default function Dashboard() {
   const { user } = useAuth()
   const userId = user?.id
-  const { data: habits = [], isLoading: habitsLoading } = useHabits(userId)
+  const { habits: offlineHabits = [], activityLog = [] } = useOfflineSync()
+  const { data: serverHabits = [], isLoading: habitsLoading } = useHabits(userId)
+  const habits = (offlineHabits?.length ?? 0) > 0 ? offlineHabits : serverHabits
   const { data: stats, isLoading: statsLoading } = useUserStats(userId)
   const { data: profile } = useGamificationProfile(userId)
   const { data: recentCompletions = [] } = useRecentCompletions(userId, 5)
   const markComplete = useMarkComplete(userId ?? '')
   const habitMap = new Map((Array.isArray(habits) ? habits : []).map((h) => [h.id, h]))
+  const activityItems = Array.isArray(activityLog) ? activityLog : []
 
   if (!userId) return null
 
@@ -142,29 +146,47 @@ export default function Dashboard() {
         )}
       </section>
 
-      {Array.isArray(recentCompletions) && recentCompletions.length > 0 && (
+      {(activityItems.length > 0 || (Array.isArray(recentCompletions) && recentCompletions.length > 0)) && (
         <section className="mt-8">
           <h2 className="text-lg font-semibold text-foreground mb-3 flex items-center gap-2">
             <Activity className="h-5 w-5 text-primary" />
-            Recent activity
+            Activity timeline
           </h2>
           <Card>
             <CardContent className="p-4">
-              <ul className="space-y-2">
-                {recentCompletions.slice(0, 5).map((c) => {
-                  const habit = habitMap.get(c.habit_id)
-                  const title = habit?.title ?? 'Habit'
-                  return (
-                    <li key={c.id} className="flex justify-between items-center text-sm">
-                      <span className="text-muted-foreground truncate mr-2">{title}</span>
-                      <span className="shrink-0 text-foreground font-medium">+{c.xp_awarded} XP</span>
+              {activityItems.length > 0 ? (
+                <ul className="space-y-2">
+                  {activityItems.slice(0, 10).map((a) => (
+                    <li key={a.id} className="flex justify-between items-center text-sm">
+                      <span className="text-muted-foreground truncate mr-2">
+                        {a.habitTitle ?? a.type}
+                      </span>
+                      {typeof (a.payload as Record<string, unknown>)?.xp === 'number' && (
+                        <span className="shrink-0 text-foreground font-medium">+{(a.payload as { xp: number }).xp} XP</span>
+                      )}
                       <span className="text-xs text-muted-foreground shrink-0 ml-2">
-                        {format(parseISO(c.timestamp), 'HH:mm')}
+                        {format(parseISO(a.timestamp), 'HH:mm')}
                       </span>
                     </li>
-                  )
-                })}
-              </ul>
+                  ))}
+                </ul>
+              ) : (
+                <ul className="space-y-2">
+                  {(recentCompletions ?? []).slice(0, 5).map((c) => {
+                    const habit = habitMap.get(c.habit_id)
+                    const title = habit?.title ?? 'Habit'
+                    return (
+                      <li key={c.id} className="flex justify-between items-center text-sm">
+                        <span className="text-muted-foreground truncate mr-2">{title}</span>
+                        <span className="shrink-0 text-foreground font-medium">+{c.xp_awarded} XP</span>
+                        <span className="text-xs text-muted-foreground shrink-0 ml-2">
+                          {format(parseISO(c.timestamp), 'HH:mm')}
+                        </span>
+                      </li>
+                    )
+                  })}
+                </ul>
+              )}
             </CardContent>
           </Card>
         </section>

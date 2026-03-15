@@ -33,6 +33,16 @@ export const edgeApi = {
     return result
   },
 
+  syncBatch: async (operations: Array<{ localId: string; action: string; entityType: string; payload: unknown }>) => {
+    const { data, error } = await supabase.functions.invoke('sync-batch', {
+      body: { operations },
+    })
+    if (error) throw new Error(error.message)
+    const payload = data as { error?: string; results?: unknown[]; conflicts?: unknown[]; serverVersion?: number; lastModified?: string | null }
+    if (payload?.error) throw new Error(payload.error)
+    return payload
+  },
+
   getUploadUrl: async (params: {
     asset_type: 'image' | 'badge' | 'export'
     filename: string

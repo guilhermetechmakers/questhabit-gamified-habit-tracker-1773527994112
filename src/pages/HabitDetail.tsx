@@ -5,7 +5,7 @@ import { useMarkComplete } from '@/hooks/use-completion'
 import { useCreateReminder, useUpdateReminder, useDeleteReminder } from '@/hooks/use-reminders'
 import { useHabitHistory, useHabitAnalytics } from '@/hooks/use-habits'
 import { HabitIcon } from '@/components/habits/habit-icon'
-import { ReminderEditor } from '@/components/habits/ReminderEditor'
+import { ReminderEditor, HistoryTimeline } from '@/components/habits'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -208,17 +208,9 @@ export default function HabitDetail() {
             <CardTitle className="text-base">Recent history</CardTitle>
           </CardHeader>
           <CardContent>
-            <ul className="space-y-2 max-h-48 overflow-y-auto">
-              {(history as { date: string; xp_gained: number }[]).slice(0, 10).map((entry) => (
-                <li
-                  key={entry.date}
-                  className="flex justify-between text-sm"
-                >
-                  <span className="text-muted-foreground">{entry.date}</span>
-                  <span className="font-medium">+{entry.xp_gained} XP</span>
-                </li>
-              ))}
-            </ul>
+            <div className="max-h-48 overflow-y-auto">
+              <HistoryTimeline entries={history} maxItems={10} />
+            </div>
           </CardContent>
         </Card>
       )}

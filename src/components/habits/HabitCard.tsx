@@ -10,6 +10,8 @@ import {
   Pencil,
   Trash2,
   MoreHorizontal,
+  CloudOff,
+  AlertCircle,
 } from 'lucide-react'
 import {
   DropdownMenu,
@@ -40,6 +42,8 @@ export interface HabitCardProps {
   onQuickComplete?: (habitId: string) => void
   compact?: boolean
   streak?: number
+  /** Sync state: pending, conflict, or undefined when synced */
+  syncStatus?: 'pending' | 'conflict' | 'synced'
 }
 
 export function HabitCard({
@@ -51,6 +55,7 @@ export function HabitCard({
   onQuickComplete,
   compact = false,
   streak = 0,
+  syncStatus,
 }: HabitCardProps) {
   const Icon = ICON_MAP[habit.icon] ?? Target
   const frequency = habit.schedule_json?.frequency ?? 'daily'
@@ -139,11 +144,25 @@ export function HabitCard({
             </DropdownMenu>
           )}
         </div>
-        {habit.archived && (
-          <span className="mt-2 inline-block rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
-            Archived
-          </span>
-        )}
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          {habit.archived && (
+            <span className="inline-block rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+              Archived
+            </span>
+          )}
+          {syncStatus === 'pending' && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-primary/15 px-2 py-0.5 text-xs text-primary" title="Pending sync">
+              <CloudOff className="h-3 w-3" aria-hidden />
+              Pending
+            </span>
+          )}
+          {syncStatus === 'conflict' && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-secondary/20 px-2 py-0.5 text-xs text-secondary" title="Sync conflict">
+              <AlertCircle className="h-3 w-3" aria-hidden />
+              Conflict
+            </span>
+          )}
+        </div>
       </CardContent>
     </Card>
   )
