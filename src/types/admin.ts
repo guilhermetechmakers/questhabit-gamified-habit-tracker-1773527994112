@@ -55,4 +55,7 @@ export interface ExportJob {
   created_at: string
   completed_at: string | null
   file_url: string | null
+  format?: 'csv' | 'json'
+  schedule_id?: string | null
+  filters?: Record<string, unknown>
 }

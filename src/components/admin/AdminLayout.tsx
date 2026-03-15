@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, Outlet, useLocation } from 'react-router-dom'
-import { LayoutDashboard, Users, Shield, FileText, ChevronLeft, ChevronRight, Menu } from 'lucide-react'
+import { LayoutDashboard, Users, Shield, FileText, BarChart3, ChevronLeft, ChevronRight, Menu } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { ImpersonationBanner } from './ImpersonationBanner'
@@ -10,6 +10,7 @@ import { useAdminStopImpersonation } from '@/hooks/use-admin'
 
 const NAV_ITEMS = [
   { to: '/app/admin', end: true, label: 'Dashboard', icon: LayoutDashboard },
+  { to: '/app/admin/analytics-reports', end: false, label: 'Analytics & Reports', icon: BarChart3 },
   { to: '/app/admin/users', end: false, label: 'Users', icon: Users },
   { to: '/app/admin/moderation', end: false, label: 'Moderation', icon: Shield },
   { to: '/app/admin/audit', end: false, label: 'Audit', icon: FileText },

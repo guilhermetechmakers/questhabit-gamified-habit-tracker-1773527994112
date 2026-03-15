@@ -34,6 +34,7 @@ import AdminDashboard from '@/pages/AdminDashboard'
 import AdminUsers from '@/pages/AdminUsers'
 import AdminModeration from '@/pages/AdminModeration'
 import AdminAudit from '@/pages/AdminAudit'
+import AdminAnalyticsReports from '@/pages/AdminAnalyticsReports'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -61,6 +62,7 @@ export default function App() {
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/app/admin" element={<ProtectedRoute><AdminRoute><AdminLayout /></AdminRoute></ProtectedRoute>}>
               <Route index element={<AdminDashboard />} />
+              <Route path="analytics-reports" element={<AdminAnalyticsReports />} />
               <Route path="users" element={<AdminUsers />} />
               <Route path="moderation" element={<AdminModeration />} />
               <Route path="audit" element={<AdminAudit />} />

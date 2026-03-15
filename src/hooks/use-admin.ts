@@ -16,6 +16,12 @@ const ADMIN_KEYS = {
   auditLogs: (params?: Record<string, unknown>) => ['admin', 'audit-logs', params ?? {}] as const,
   moderationQueue: ['admin', 'moderation-queue'] as const,
   exportStatus: (jobId: string) => ['admin', 'export-status', jobId] as const,
+  analyticsCohorts: (filters?: Record<string, unknown>) => ['admin', 'analytics', 'cohorts', filters ?? {}] as const,
+  analyticsRetention: (params?: Record<string, unknown>) => ['admin', 'analytics', 'retention', params ?? {}] as const,
+  analyticsFunnels: (filters?: Record<string, unknown>) => ['admin', 'analytics', 'funnels', filters ?? {}] as const,
+  analyticsReports: (filters?: Record<string, unknown>) => ['admin', 'analytics', 'reports', filters ?? {}] as const,
+  analyticsExportJob: (jobId: string) => ['admin', 'analytics', 'export', jobId] as const,
+  userSearch: (q: string) => ['admin', 'user-search', q] as const,
 }
 
 export function useAdminProfile() {
@@ -204,6 +210,94 @@ export function useAdminStopImpersonation() {
     mutationFn: () => adminApi.stopImpersonation(),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['admin-profile'] })
+    },
+  })
+}
+
+// ---------- Analytics & Reporting ----------
+
+export function useAnalyticsCohorts(filters?: { dateFrom?: string; dateTo?: string; channel?: string }) {
+  return useQuery({
+    queryKey: ADMIN_KEYS.analyticsCohorts(filters),
+    queryFn: async () => {
+      const res = await adminApi.getCohorts(filters)
+      const data = Array.isArray(res?.data) ? res.data : []
+      return { data }
+    },
+  })
+}
+
+export function useAnalyticsRetention(params?: { cohortId?: string; range?: string }) {
+  return useQuery({
+    queryKey: ADMIN_KEYS.analyticsRetention(params),
+    queryFn: async () => {
+      const res = await adminApi.getRetention(params ?? {})
+      const data = Array.isArray(res?.data) ? res.data : []
+      return { data }
+    },
+  })
+}
+
+export function useAnalyticsFunnels(filters?: { dateFrom?: string; dateTo?: string }) {
+  return useQuery({
+    queryKey: ADMIN_KEYS.analyticsFunnels(filters),
+    queryFn: async () => {
+      const res = await adminApi.getFunnels(filters)
+      const data = Array.isArray(res?.data) ? res.data : []
+      return { data }
+    },
+  })
+}
+
+export function useAnalyticsReports(filters?: { dateFrom?: string }) {
+  return useQuery({
+    queryKey: ADMIN_KEYS.analyticsReports(filters),
+    queryFn: async () => {
+      const res = await adminApi.getReports(filters)
+      const data = Array.isArray(res?.data) ? res.data : []
+      return { data }
+    },
+  })
+}
+
+export function useAnalyticsExportJob(jobId: string | null) {
+  return useQuery({
+    queryKey: ADMIN_KEYS.analyticsExportJob(jobId ?? ''),
+    queryFn: () => adminApi.getExportJob(jobId!),
+    enabled: !!jobId,
+  })
+}
+
+export function useAdminUserSearch(query: string) {
+  return useQuery({
+    queryKey: ADMIN_KEYS.userSearch(query),
+    queryFn: async () => {
+      const res = await adminApi.searchUsers(query)
+      const data = Array.isArray(res?.data) ? res.data : []
+      return { data }
+    },
+    enabled: query.trim().length >= 2,
+  })
+}
+
+export function useCreateAnalyticsExport() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (payload: { type: 'csv' | 'json'; filters?: Record<string, unknown>; scheduleId?: string }) =>
+      adminApi.createExport(payload),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin', 'analytics'] })
+    },
+  })
+}
+
+export function useUpdateAnalyticsExportJob() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ jobId, action }: { jobId: string; action: 'pause' | 'resume' | 'cancel' }) =>
+      adminApi.updateExportJob(jobId, action),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin', 'analytics'] })
     },
   })
 }
