@@ -17,9 +17,23 @@ export function useSubscription(userId: string | undefined) {
   })
 }
 
-export function useInvoices(params?: { limit?: number; offset?: number }) {
+export function useInvoices(params?: {
+  limit?: number
+  offset?: number
+  date_from?: string
+  date_to?: string
+  status?: string
+}) {
   return useQuery({
-    queryKey: ['payments', 'invoices', params?.limit, params?.offset],
+    queryKey: [
+      'payments',
+      'invoices',
+      params?.limit,
+      params?.offset,
+      params?.date_from,
+      params?.date_to,
+      params?.status,
+    ],
     queryFn: () => paymentsApi.listInvoices(params),
   })
 }
@@ -81,11 +95,39 @@ export function useSetDefaultPaymentMethod() {
 export function useSubscriptionAction() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (params: { action: 'create' | 'update' | 'cancel'; plan_id?: string; proration?: boolean }) =>
-      paymentsApi.subscriptionAction(params),
+    mutationFn: (params: {
+      action: 'create' | 'update' | 'cancel' | 'reactivate'
+      plan_id?: string
+      proration?: boolean
+    }) => paymentsApi.subscriptionAction(params),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['payments'] })
     },
+  })
+}
+
+export function useProrationPreview(planId: string | null) {
+  return useQuery({
+    queryKey: ['payments', 'proration-preview', planId],
+    queryFn: () => (planId ? paymentsApi.getProrationPreview(planId) : Promise.resolve(null)),
+    enabled: !!planId,
+  })
+}
+
+export function useDetachPaymentMethod() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (paymentMethodId: string) => paymentsApi.detachPaymentMethod(paymentMethodId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['payments'] })
+    },
+  })
+}
+
+export function useBillingAuditLogs(params?: { limit?: number; offset?: number }) {
+  return useQuery({
+    queryKey: ['payments', 'billing-audit', params?.limit, params?.offset],
+    queryFn: () => paymentsApi.listBillingAuditLogs(params),
   })
 }
 

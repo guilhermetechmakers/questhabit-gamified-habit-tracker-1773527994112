@@ -31,7 +31,7 @@ serve(async (req) => {
     }
 
     const body = (await req.json()) as {
-      action: 'create' | 'update' | 'cancel'
+      action: 'create' | 'update' | 'cancel' | 'reactivate'
       plan_id?: string
       proration?: boolean
     }
@@ -47,10 +47,15 @@ serve(async (req) => {
       .eq('id', user.id)
       .single()
     const customerId = (profile as { stripe_customer_id?: string } | null)?.stripe_customer_id
-    if (!customerId) {
-      return new Response(JSON.stringify({ error: 'No Stripe customer found' }), {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+
+    const insertBillingAudit = async (auditAction: string, targetType: string, targetId: string, payload: Record<string, unknown>) => {
+      await supabaseService.from('billing_audit_logs').insert({
+        user_id: user.id,
+        actor_id: user.id,
+        action: auditAction,
+        target_type: targetType,
+        target_id: targetId,
+        payload: payload ?? {},
       })
     }
 
@@ -71,12 +76,50 @@ serve(async (req) => {
         })
       }
       await stripe.subscriptions.update(subId, { cancel_at_period_end: true })
-      return new Response(JSON.stringify({}), {
+      await supabaseService.from('subscriptions').update({ cancel_at_period_end: true }).eq('stripe_subscription_id', subId)
+      await insertBillingAudit('subscription_cancel', 'subscription', subId, { cancel_at_period_end: true })
+      return new Response(JSON.stringify({ success: true, cancel_at_period_end: true }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+
+    if (action === 'reactivate') {
+      const { data: sub } = await supabaseService
+        .from('subscriptions')
+        .select('stripe_subscription_id, cancel_at_period_end')
+        .eq('user_id', user.id)
+        .in('status', ['active', 'trialing'])
+        .order('current_period_end', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+      const row = sub as { stripe_subscription_id?: string; cancel_at_period_end?: boolean } | null
+      const subId = row?.stripe_subscription_id
+      if (!subId) {
+        return new Response(JSON.stringify({ error: 'No active subscription found' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+      }
+      if (!row?.cancel_at_period_end) {
+        return new Response(JSON.stringify({ success: true }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+      }
+      await stripe.subscriptions.update(subId, { cancel_at_period_end: false })
+      await supabaseService.from('subscriptions').update({ cancel_at_period_end: false }).eq('stripe_subscription_id', subId)
+      await insertBillingAudit('subscription_reactivate', 'subscription', subId, {})
+      return new Response(JSON.stringify({ success: true }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
 
     if (action === 'create') {
+      if (!customerId) {
+        return new Response(JSON.stringify({ error: 'No Stripe customer found' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+      }
       if (!plan_id) {
         return new Response(JSON.stringify({ error: 'plan_id required for create' }), {
           status: 400,
@@ -162,7 +205,8 @@ serve(async (req) => {
         items: [{ id: itemId, price: priceId }],
         proration_behavior: proration ? 'create_prorations' : 'none',
       })
-      return new Response(JSON.stringify({}), {
+      await insertBillingAudit('subscription_plan_change', 'subscription', subId, { plan_id: plan_id ?? '', proration })
+      return new Response(JSON.stringify({ success: true }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }

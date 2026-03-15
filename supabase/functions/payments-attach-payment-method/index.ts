@@ -67,7 +67,7 @@ serve(async (req) => {
         .eq('user_id', user.id)
         .eq('stripe_payment_method_id', paymentMethodId)
         .maybeSingle()
-      if (!existing?.data) {
+      if (!(existing as { data?: unknown })?.data) {
         await supabaseService.from('payment_methods').insert({
           user_id: user.id,
           stripe_payment_method_id: paymentMethodId,
@@ -79,6 +79,15 @@ serve(async (req) => {
         })
       }
     }
+
+    await supabaseService.from('billing_audit_logs').insert({
+      user_id: user.id,
+      actor_id: user.id,
+      action: 'payment_method_attach',
+      target_type: 'payment_method',
+      target_id: paymentMethodId,
+      payload: {},
+    })
 
     return new Response(JSON.stringify({}), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

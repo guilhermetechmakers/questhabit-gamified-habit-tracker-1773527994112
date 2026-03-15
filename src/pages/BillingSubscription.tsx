@@ -1,12 +1,27 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '@/contexts/auth-context'
-import { useSubscription, usePlans, useUpcomingInvoice, useSubscriptionAction } from '@/hooks/use-payments'
-import type { UpcomingInvoice } from '@/types/payments'
+import {
+  useSubscription,
+  usePlans,
+  useUpcomingInvoice,
+  useSubscriptionAction,
+  useProrationPreview,
+  usePaymentMethods,
+  useSetDefaultPaymentMethod,
+  useDetachPaymentMethod,
+} from '@/hooks/use-payments'
 import { AnimatedPage } from '@/components/AnimatedPage'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { PlanSelector } from '@/components/billing/PlanSelector'
+import {
+  PlanSelector,
+  UpcomingInvoicePanel,
+  ProrationPreview,
+  CancelationBanner,
+  BillingMethodCard,
+  ReauthModal,
+} from '@/components/billing'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ArrowLeft, Loader2, AlertCircle } from 'lucide-react'
 import { toast } from 'sonner'
@@ -21,13 +36,6 @@ function formatDate(iso: string | null): string {
   }).format(new Date(iso))
 }
 
-function formatCurrency(cents: number, currency = 'usd'): string {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: currency.toUpperCase(),
-  }).format(cents / 100)
-}
-
 export default function BillingSubscription() {
   const { user } = useAuth()
   const userId = user?.id ?? ''
@@ -35,36 +43,94 @@ export default function BillingSubscription() {
   const { data: plans = [], isLoading: plansLoading } = usePlans()
   const { data: upcoming } = useUpcomingInvoice(userId)
   const subscriptionAction = useSubscriptionAction()
-
+  const { data: paymentMethods = [] } = usePaymentMethods(userId)
+  const setDefaultPm = useSetDefaultPaymentMethod()
+  const detachPm = useDetachPaymentMethod()
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null)
   const [showCancelConfirm, setShowCancelConfirm] = useState(false)
+  const [reauthOpen, setReauthOpen] = useState(false)
+  const [pendingAction, setPendingAction] = useState<(() => void) | null>(null)
+
+  const { data: prorationPreview, isLoading: prorationLoading } = useProrationPreview(
+    selectedPlanId && selectedPlanId !== subscription?.plan_id ? selectedPlanId : null
+  )
 
   const hasSubscription = subscription && ['active', 'trialing'].includes(subscription.status)
   const cancelAtPeriodEnd = subscription?.cancel_at_period_end ?? false
 
-  const handleChangePlan = async () => {
-    if (!selectedPlanId || selectedPlanId === subscription?.plan_id) return
-    try {
-      await subscriptionAction.mutateAsync({
-        action: 'update',
-        plan_id: selectedPlanId,
-        proration: true,
-      })
-      toast.success('Plan updated. Changes apply at next billing cycle.')
-      setSelectedPlanId(null)
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Update failed')
+  const runAfterReauth = async () => {
+    if (pendingAction) {
+      await pendingAction()
+      setPendingAction(null)
     }
+    setReauthOpen(false)
   }
 
-  const handleCancel = async () => {
-    try {
-      await subscriptionAction.mutateAsync({ action: 'cancel' })
-      toast.success('Subscription will cancel at the end of the billing period.')
-      setShowCancelConfirm(false)
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Cancel failed')
-    }
+  const requireReauth = (action: () => void) => {
+    setPendingAction(() => action)
+    setReauthOpen(true)
+  }
+
+  const handleChangePlan = () => {
+    if (!selectedPlanId || selectedPlanId === subscription?.plan_id) return
+    requireReauth(async () => {
+      try {
+        await subscriptionAction.mutateAsync({
+          action: 'update',
+          plan_id: selectedPlanId,
+          proration: true,
+        })
+        toast.success('Plan updated. Changes apply at next billing cycle.')
+        setSelectedPlanId(null)
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : 'Update failed')
+      }
+    })
+  }
+
+  const handleCancel = () => {
+    requireReauth(async () => {
+      try {
+        await subscriptionAction.mutateAsync({ action: 'cancel' })
+        toast.success('Subscription will cancel at the end of the billing period.')
+        setShowCancelConfirm(false)
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : 'Cancel failed')
+      }
+    })
+  }
+
+  const handleReactivate = () => {
+    requireReauth(async () => {
+      try {
+        await subscriptionAction.mutateAsync({ action: 'reactivate' })
+        toast.success('Subscription reactivated.')
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : 'Reactivation failed')
+      }
+    })
+  }
+
+  const handleSetDefaultPm = (paymentMethodId: string) => {
+    requireReauth(async () => {
+      try {
+        await setDefaultPm.mutateAsync(paymentMethodId)
+        toast.success('Default payment method updated.')
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : 'Update failed')
+      }
+    })
+  }
+
+  const handleDetachPm = (paymentMethodId: string) => {
+    requireReauth(async () => {
+      try {
+        await detachPm.mutateAsync(paymentMethodId)
+        toast.success('Payment method removed.')
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : 'Remove failed')
+      }
+    })
   }
 
   if (subLoading || !userId) {
@@ -90,13 +156,17 @@ export default function BillingSubscription() {
           <CardContent className="py-8 text-center">
             <p className="text-muted-foreground mb-4">You don't have an active subscription.</p>
             <Link to="/app/billing/checkout">
-              <Button variant="gradient" className="rounded-xl">Subscribe</Button>
+              <Button variant="gradient" className="rounded-xl">
+                Subscribe
+              </Button>
             </Link>
           </CardContent>
         </Card>
       </AnimatedPage>
     )
   }
+
+  const selectedPlan = (plans ?? []).find((p) => p.id === selectedPlanId)
 
   return (
     <AnimatedPage>
@@ -115,17 +185,50 @@ export default function BillingSubscription() {
         )}
       </p>
 
-      {upcoming && (
-        <Card className="mb-6 rounded-2xl border-border bg-primary/5">
-          <CardContent className="p-4">
-            <p className="text-sm font-medium text-foreground">Upcoming invoice</p>
-            <p className="text-muted-foreground text-sm">
-              {formatCurrency((upcoming as UpcomingInvoice).amount_due, upcoming.currency)} on{' '}
-              {formatDate(upcoming.period_end)}
-            </p>
-          </CardContent>
-        </Card>
+      {cancelAtPeriodEnd && (
+        <CancelationBanner
+          cancelAtPeriodEnd={cancelAtPeriodEnd}
+          periodEndDate={subscription?.current_period_end ?? null}
+          onReactivate={handleReactivate}
+          isReactivating={subscriptionAction.isPending}
+          className="mb-6"
+        />
       )}
+
+      {upcoming && (
+        <UpcomingInvoicePanel
+          amountDue={upcoming.amount_due}
+          currency={upcoming.currency}
+          periodEnd={upcoming.period_end}
+          className="mb-6"
+        />
+      )}
+
+      <Card className="mb-6 rounded-2xl border-border shadow-card">
+        <CardHeader>
+          <CardTitle className="text-lg">Payment methods</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {Array.isArray(paymentMethods) && paymentMethods.length > 0 ? (
+            <ul className="space-y-3" role="list">
+              {(paymentMethods ?? []).map((pm) => (
+                <li key={pm.id}>
+                  <BillingMethodCard
+                    method={pm}
+                    onSetDefault={handleSetDefaultPm}
+                    onRemove={handleDetachPm}
+                    isSettingDefault={setDefaultPm.isPending}
+                    isRemoving={detachPm.isPending}
+                    disabled={setDefaultPm.isPending || detachPm.isPending}
+                  />
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-sm text-muted-foreground py-4">No payment methods on file. Add one at checkout.</p>
+          )}
+        </CardContent>
+      </Card>
 
       <Card className="mb-6 rounded-2xl border-border shadow-card">
         <CardHeader>
@@ -144,19 +247,27 @@ export default function BillingSubscription() {
                 className="mb-4"
               />
               {selectedPlanId && selectedPlanId !== subscription?.plan_id && (
-                <Button
-                  variant="gradient"
-                  size="sm"
-                  className="rounded-xl mt-2"
-                  disabled={subscriptionAction.isPending}
-                  onClick={handleChangePlan}
-                >
-                  {subscriptionAction.isPending ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    'Apply change'
-                  )}
-                </Button>
+                <>
+                  <ProrationPreview
+                    preview={prorationPreview ?? null}
+                    isLoading={prorationLoading}
+                    planName={selectedPlan?.name}
+                    className="mb-4"
+                  />
+                  <Button
+                    variant="gradient"
+                    size="sm"
+                    className="rounded-xl mt-2 transition-transform hover:scale-[1.02] active:scale-[0.98]"
+                    disabled={subscriptionAction.isPending}
+                    onClick={handleChangePlan}
+                  >
+                    {subscriptionAction.isPending ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      'Apply change'
+                    )}
+                  </Button>
+                </>
               )}
             </>
           )}
@@ -174,9 +285,10 @@ export default function BillingSubscription() {
           {showCancelConfirm ? (
             <>
               <p className="text-sm text-muted-foreground">
-                Your subscription will remain active until the end of the current period. No further charges will be made.
+                Your subscription will remain active until the end of the current period. No further
+                charges will be made.
               </p>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <Button
                   variant="outline"
                   size="sm"
@@ -192,7 +304,11 @@ export default function BillingSubscription() {
                   disabled={subscriptionAction.isPending}
                   onClick={handleCancel}
                 >
-                  {subscriptionAction.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Confirm cancel'}
+                  {subscriptionAction.isPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    'Confirm cancel'
+                  )}
                 </Button>
               </div>
             </>
@@ -213,6 +329,18 @@ export default function BillingSubscription() {
           )}
         </CardContent>
       </Card>
+
+      <ReauthModal
+        open={reauthOpen}
+        onOpenChange={(open) => {
+          if (!open) setPendingAction(null)
+          setReauthOpen(open)
+        }}
+        userEmail={user?.email ?? ''}
+        onSuccess={runAfterReauth}
+        title="Confirm your identity"
+        description="Re-enter your password to continue with this billing action."
+      />
     </AnimatedPage>
   )
 }

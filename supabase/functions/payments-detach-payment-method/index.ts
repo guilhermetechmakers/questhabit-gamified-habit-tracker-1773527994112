@@ -1,6 +1,7 @@
 /**
- * QuestHabit Payments: Set default payment method for Stripe customer.
- * Requires STRIPE_SECRET_KEY. Called by client with auth.
+ * QuestHabit Payments: Detach payment method from Stripe customer.
+ * Removes from Stripe and local payment_methods. Writes audit log.
+ * Requires STRIPE_SECRET_KEY.
  */
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
@@ -8,9 +9,7 @@ import { corsHeaders } from '../_shared/cors.ts'
 import { stripe } from '../_shared/stripe.ts'
 
 serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
-  }
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
 
   try {
     const supabase = createClient(
@@ -18,11 +17,8 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
       { global: { headers: { Authorization: req.headers.get('Authorization') ?? '' } } }
     )
-
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser(req.headers.get('Authorization')?.replace('Bearer ', '') ?? '')
+    const token = req.headers.get('Authorization')?.replace('Bearer ', '') ?? ''
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token)
     if (authError || !user) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
         status: 401,
@@ -43,47 +39,36 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
-    const { data: profile } = await supabaseService
-      .from('users')
-      .select('stripe_customer_id')
-      .eq('id', user.id)
-      .single()
-    const customerId = (profile as { stripe_customer_id?: string } | null)?.stripe_customer_id
-    if (!customerId) {
-      return new Response(JSON.stringify({ error: 'No Stripe customer found' }), {
-        status: 400,
+    const { data: pmRow } = await supabaseService
+      .from('payment_methods')
+      .select('id, last4, brand')
+      .eq('user_id', user.id)
+      .eq('stripe_payment_method_id', paymentMethodId)
+      .maybeSingle()
+    if (!pmRow) {
+      return new Response(JSON.stringify({ error: 'Payment method not found or not owned by user' }), {
+        status: 404,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
 
-    await stripe.customers.update(customerId, {
-      invoice_settings: { default_payment_method: paymentMethodId },
-    })
-
+    await stripe.paymentMethods.detach(paymentMethodId)
     await supabaseService
       .from('payment_methods')
-      .update({ is_default: false })
-      .eq('user_id', user.id)
-    await supabaseService
-      .from('payment_methods')
-      .update({ is_default: true })
+      .delete()
       .eq('user_id', user.id)
       .eq('stripe_payment_method_id', paymentMethodId)
-    await supabaseService
-      .from('users')
-      .update({ default_payment_method_id: paymentMethodId })
-      .eq('id', user.id)
 
     await supabaseService.from('billing_audit_logs').insert({
       user_id: user.id,
       actor_id: user.id,
-      action: 'payment_method_set_default',
+      action: 'payment_method_detach',
       target_type: 'payment_method',
       target_id: paymentMethodId,
-      payload: {},
+      payload: { last4: (pmRow as { last4?: string }).last4, brand: (pmRow as { brand?: string }).brand },
     })
 
-    return new Response(JSON.stringify({}), {
+    return new Response(JSON.stringify({ success: true }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
   } catch (err) {

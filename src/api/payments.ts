@@ -1,14 +1,34 @@
 import { supabase } from '@/lib/supabase'
-import type { Invoice, Plan, Subscription, UpcomingInvoice, CheckoutSessionResult, PaymentMethod } from '@/types/payments'
+import type {
+  Invoice,
+  Plan,
+  Subscription,
+  UpcomingInvoice,
+  CheckoutSessionResult,
+  PaymentMethod,
+  ProrationPreview,
+  BillingAuditLog,
+} from '@/types/payments'
 
 const guardInvoices = (data: unknown): Invoice[] =>
   Array.isArray(data) ? (data as Invoice[]) : []
 
+const mapPlan = (row: Record<string, unknown>): Plan => ({
+  id: String(row.id ?? ''),
+  stripe_price_id: String(row.stripe_price_id ?? ''),
+  name: String(row.name ?? ''),
+  amount: Number(row.amount_cents ?? row.amount ?? 0),
+  amount_cents: Number(row.amount_cents ?? row.amount ?? 0),
+  currency: String(row.currency ?? 'usd'),
+  interval: (row.interval === 'yearly' || row.interval === 'monthly' ? row.interval : 'monthly') as 'monthly' | 'yearly',
+})
+
 export const paymentsApi = {
   getPlans: async (): Promise<Plan[]> => {
-    const { data, error } = await supabase.from('plans').select('*').order('amount', { ascending: true })
+    const { data, error } = await supabase.from('plans').select('*').order('amount_cents', { ascending: true })
     if (error) throw new Error(error.message)
-    return Array.isArray(data) ? (data as Plan[]) : []
+    const rows = Array.isArray(data) ? data : []
+    return rows.map((r) => mapPlan(r as Record<string, unknown>))
   },
 
   getSubscription: async (userId: string): Promise<Subscription | null> => {
@@ -60,11 +80,23 @@ export const paymentsApi = {
     }
   },
 
-  listInvoices: async (params?: { limit?: number; offset?: number }): Promise<{ invoices: Invoice[]; count: number }> => {
+  listInvoices: async (params?: {
+    limit?: number
+    offset?: number
+    date_from?: string
+    date_to?: string
+    status?: string
+  }): Promise<{ invoices: Invoice[]; count: number }> => {
     const limit = params?.limit ?? 20
     const offset = params?.offset ?? 0
     const { data, error } = await supabase.functions.invoke('payments-invoices', {
-      body: { limit, offset },
+      body: {
+        limit,
+        offset,
+        date_from: params?.date_from,
+        date_to: params?.date_to,
+        status: params?.status,
+      },
     })
     if (error) throw new Error(error.message)
     const payload = data as { error?: string; invoices?: unknown[]; count?: number }
@@ -107,7 +139,7 @@ export const paymentsApi = {
   },
 
   subscriptionAction: async (params: {
-    action: 'create' | 'update' | 'cancel'
+    action: 'create' | 'update' | 'cancel' | 'reactivate'
     plan_id?: string
     proration?: boolean
   }): Promise<{ success: boolean; cancel_at_period_end?: boolean }> => {
@@ -144,6 +176,47 @@ export const paymentsApi = {
     const payload = data as { error?: string }
     if (payload?.error) throw new Error(payload.error)
   },
+
+  detachPaymentMethod: async (paymentMethodId: string): Promise<void> => {
+    const { data, error } = await supabase.functions.invoke('payments-detach-payment-method', {
+      body: { payment_method_id: paymentMethodId },
+    })
+    if (error) throw new Error(error.message)
+    const payload = data as { error?: string }
+    if (payload?.error) throw new Error(payload.error)
+  },
+
+  getProrationPreview: async (planId?: string | null): Promise<ProrationPreview | null> => {
+    const { data, error } = await supabase.functions.invoke('payments-proration-preview', {
+      body: planId ? { plan_id: planId } : {},
+    })
+    if (error) throw new Error(error.message)
+    const payload = data as { error?: string } & Partial<ProrationPreview>
+    if (payload?.error) throw new Error(payload.error)
+    if (typeof payload?.amount_due === 'number') {
+      return {
+        amount_due: payload.amount_due,
+        currency: payload.currency ?? 'usd',
+        period_start: payload.period_start ?? null,
+        period_end: payload.period_end ?? null,
+        line_items: Array.isArray(payload?.line_items) ? payload.line_items : undefined,
+      }
+    }
+    return null
+  },
+
+  listBillingAuditLogs: async (params?: { limit?: number; offset?: number }): Promise<{ logs: BillingAuditLog[]; count: number }> => {
+    const limit = params?.limit ?? 50
+    const offset = params?.offset ?? 0
+    const { data, error } = await supabase.functions.invoke('payments-audit-logs', {
+      body: { limit, offset },
+    })
+    if (error) throw new Error(error.message)
+    const payload = data as { error?: string; logs?: unknown[]; count?: number }
+    if (payload?.error) throw new Error(payload.error)
+    const logs = Array.isArray(payload?.logs) ? (payload.logs as BillingAuditLog[]) : []
+    return { logs, count: payload?.count ?? logs.length }
+  },
 }
 
-export type { Invoice, Plan, Subscription, UpcomingInvoice, CheckoutSessionResult, PaymentMethod }
+export type { Invoice, Plan, Subscription, UpcomingInvoice, CheckoutSessionResult, PaymentMethod, ProrationPreview, BillingAuditLog }

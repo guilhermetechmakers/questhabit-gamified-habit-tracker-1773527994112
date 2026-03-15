@@ -29,10 +29,20 @@ serve(async (req) => {
       })
     }
 
-    const body = (await req.json().catch(() => ({}))) as { limit?: number; offset?: number; id?: string }
+    const body = (await req.json().catch(() => ({}))) as {
+      limit?: number
+      offset?: number
+      id?: string
+      date_from?: string
+      date_to?: string
+      status?: string
+    }
     const limit = Math.min(Math.max((body?.limit ?? 20), 1), 100)
     const offset = Math.max((body?.offset ?? 0), 0)
     const id = body?.id
+    const dateFrom = body?.date_from
+    const dateTo = body?.date_to
+    const statusFilter = body?.status
 
     if (id) {
       const { data: inv, error } = await supabase
@@ -58,10 +68,20 @@ serve(async (req) => {
       })
     }
 
-    const { data: rows, error } = await supabase
+    let query = supabase
       .from('invoices')
       .select('*')
       .eq('user_id', user.id)
+    if (dateFrom) {
+      query = query.gte('created_at', dateFrom)
+    }
+    if (dateTo) {
+      query = query.lte('created_at', dateTo)
+    }
+    if (statusFilter) {
+      query = query.eq('status', statusFilter)
+    }
+    const { data: rows, error } = await query
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1)
 
